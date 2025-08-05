@@ -1,3 +1,19 @@
+
+import importlib
+
+required_packages = ['streamlit', 'prophet', 'matplotlib', 'openpyxl']
+missing = []
+
+for pkg in required_packages:
+    if importlib.util.find_spec(pkg) is None:
+        missing.append(pkg)
+
+if missing:
+    print(f"Faltan los siguientes paquetes: {', '.join(missing)}")
+else:
+    print("Todos los paquetes necesarios están instalados.")
+
+
 import pandas as pd
 from prophet import Prophet
 import matplotlib.pyplot as plt
