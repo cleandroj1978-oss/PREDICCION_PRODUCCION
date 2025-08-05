@@ -25,13 +25,14 @@ if uploaded_file:
             productos_seleccionados = st.multiselect("Seleccioná uno o más productos para predecir", productos)
 
             for producto in productos_seleccionados:
+                st.markdown(f"### Producto: {producto}")
                 # Filtrar datos
                 df_producto = df[df['Producto'] == producto][['Fecha de Producción', 'LITROS']]
                 df_producto = df_producto.groupby('Fecha de Producción').sum().reset_index()
                 df_producto.columns = ['ds', 'y']  # Prophet requiere estas columnas
 
                 # Mostrar gráfico histórico
-                st.subheader(f"Producción histórica - {producto}")
+                st.subheader("Producción histórica")
                 fig_hist, ax = plt.subplots()
                 ax.plot(df_producto['ds'], df_producto['y'], marker='o')
                 ax.set_title(f"Producción histórica de {producto}")
@@ -48,16 +49,16 @@ if uploaded_file:
                 forecast = modelo.predict(futuro)
 
                 # Mostrar gráfico de predicción
-                st.subheader(f"Predicción de producción - {producto}")
+                st.subheader("Predicción de producción")
                 fig_pred = modelo.plot(forecast)
                 st.pyplot(fig_pred)
 
                 # Descargar resultados
-                st.subheader(f"Descargar predicción en CSV - {producto}")
+                st.subheader("Descargar predicción en CSV")
                 forecast_result = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
                 csv = forecast_result.to_csv(index=False).encode('utf-8')
                 st.download_button(
-                    label=f"Descargar CSV - {producto}",
+                    label=f"Descargar CSV para {producto}",
                     data=csv,
                     file_name=f'prediccion_{producto}.csv',
                     mime='text/csv'
@@ -68,5 +69,6 @@ if uploaded_file:
         st.error(f"Error al leer el archivo: {e}")
 else:
     st.info("Esperando que subas el archivo Excel...")
+
 
 
