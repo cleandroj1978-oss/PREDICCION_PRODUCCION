@@ -19,14 +19,14 @@ if uploaded_file:
         st.dataframe(df.head())
 
         # Verificar columnas necesarias
-        if 'Producto' in df.columns and 'Fecha de Produccion' in df.columns and 'Litros' in df.columns:
-            # Selección múltiple de productos
-            productos = df['Producto'].unique()
+        if 'Descripcion del Producto' in df.columns and 'Fecha de Produccion' in df.columns and 'Litros' in df.columns:
+            # Selección múltiple de productos por nombre comercial
+            productos = df['Descripcion del Producto'].dropna().unique()
             productos_seleccionados = st.multiselect("Seleccioná uno o más productos para predecir", productos)
 
             for producto in productos_seleccionados:
-                # Filtrar datos
-                df_producto = df[df['Producto'] == producto][['Fecha de Produccion', 'Litros']]
+                # Filtrar datos por producto
+                df_producto = df[df['Descripcion del Producto'] == producto][['Fecha de Produccion', 'Litros']]
                 df_producto = df_producto.groupby('Fecha de Produccion').sum().reset_index()
                 df_producto.columns = ['ds', 'y']  # Prophet requiere estas columnas
 
@@ -63,10 +63,11 @@ if uploaded_file:
                     mime='text/csv'
                 )
         else:
-            st.error("Las columnas necesarias ('Producto', 'Fecha de Produccion', 'Litros') no están presentes en la hoja.")
+            st.error("Las columnas necesarias ('Descripcion del Producto', 'Fecha de Produccion', 'Litros') no están presentes en la hoja.")
     except Exception as e:
         st.error(f"Error al leer el archivo: {e}")
 else:
     st.info("Esperando que subas el archivo Excel...")
+
 
 
