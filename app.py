@@ -13,7 +13,7 @@ uploaded_file = st.file_uploader("Subí el archivo Excel exportado desde Power B
 if uploaded_file:
     try:
         # Leer hoja específica
-        df = pd.read_excel(uploaded_file, sheet_name='BAJADA PRODUCCION_ ORACLE', engine='openpyxl')
+        df = pd.read_excel(uploaded_file, sheet_name='Bajada Produccion - ORACLE', engine='openpyxl')
 
         # Mostrar preview de datos
         st.subheader("Vista previa de los datos")
