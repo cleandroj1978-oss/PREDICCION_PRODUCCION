@@ -19,6 +19,8 @@ from prophet import Prophet
 import matplotlib.pyplot as plt
 import os
 
+pip install scikit-learn
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
