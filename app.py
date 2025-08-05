@@ -1,4 +1,15 @@
 
+import importlib.util
+import sys
+
+# Verificar si el módulo 'scikit-learn' está instalado
+if importlib.util.find_spec("sklearn") is None:
+    sys.exit("❌ El módulo 'scikit-learn' no está instalado. Por favor ejecutá: pip install scikit-learn")
+
+print("✅ El módulo 'scikit-learn' está instalado correctamente.")
+
+
+
 import importlib
 
 required_packages = ['streamlit', 'prophet', 'matplotlib', 'openpyxl']
@@ -19,7 +30,6 @@ from prophet import Prophet
 import matplotlib.pyplot as plt
 import os
 
-pip install scikit-learn
 
 import streamlit as st
 import pandas as pd
