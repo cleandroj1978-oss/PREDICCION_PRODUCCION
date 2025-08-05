@@ -1,75 +1,86 @@
-import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 from prophet import Prophet
+import matplotlib.pyplot as plt
+import os
 
-# Título de la app
-st.title("Predicción de Producción - Sherwin Williams")
+# Cargar el archivo Excel y la hoja correspondiente
+file_path = "PROYECTO DASHBOARD SW V1.XLSM"
+sheet_name = "Bajada Produccion - ORACLE"
 
-# Cargar archivo Excel
-uploaded_file = st.file_uploader("Subí el archivo Excel exportado desde Power BI", type=["xls", "xlsx", "xlsm"])
+# Leer el archivo con encabezado en la segunda fila
+df = pd.read_excel(file_path, sheet_name=sheet_name, header=1, engine="openpyxl")
 
-if uploaded_file:
-    try:
-        # Leer hoja específica con encabezado en la segunda fila
-        df = pd.read_excel(uploaded_file, sheet_name='Bajada Produccion - ORACLE', header=1, engine='openpyxl')
+# Verificar que las columnas necesarias existen
+required_columns = ['Descripcion del Producto', 'Fecha de Produccion', 'Litros']
+if not all(col in df.columns for col in required_columns):
+    raise ValueError("Faltan columnas necesarias en el archivo Excel.")
 
-        # Mostrar preview de datos
-        st.subheader("Vista previa de los datos")
-        st.dataframe(df.head())
+# Convertir la fecha a formato datetime
+df['Fecha de Produccion'] = pd.to_datetime(df['Fecha de Produccion'], errors='coerce')
+df = df.dropna(subset=['Fecha de Produccion', 'Litros'])
 
-        # Verificar columnas necesarias
-        if 'Descripcion del Producto' in df.columns and 'Fecha de Produccion' in df.columns and 'Litros' in df.columns:
-            # Selección múltiple de productos por nombre comercial
-            productos = df['Descripcion del Producto'].dropna().unique()
-            productos_seleccionados = st.multiselect("Seleccioná uno o más productos para predecir", productos)
+# Crear un diccionario para almacenar resultados
+resultados = {}
 
-            for producto in productos_seleccionados:
-                # Filtrar datos por producto
-                df_producto = df[df['Descripcion del Producto'] == producto][['Fecha de Produccion', 'Litros']]
-                df_producto = df_producto.groupby('Fecha de Produccion').sum().reset_index()
-                df_producto.columns = ['ds', 'y']  # Prophet requiere estas columnas
+# Iterar por cada producto único
+for producto in df['Descripcion del Producto'].dropna().unique():
+    df_prod = df[df['Descripcion del Producto'] == producto][['Fecha de Produccion', 'Litros']].copy()
+    df_prod.columns = ['ds', 'y']
 
-                # Mostrar gráfico histórico
-                st.subheader(f"Producción histórica - {producto}")
-                fig_hist, ax = plt.subplots()
-                ax.plot(df_producto['ds'], df_producto['y'], marker='o')
-                ax.set_title(f"Producción histórica de {producto}")
-                ax.set_xlabel("Fecha")
-                ax.set_ylabel("Litros")
-                st.pyplot(fig_hist)
+    # Filtrar valores dentro del rango 80%-120% del promedio
+    promedio = df_prod['y'].mean()
+    if pd.isna(promedio) or promedio == 0:
+        continue  # Saltar si el promedio no es válido
 
-                # Entrenar modelo Prophet
-                modelo = Prophet()
-                modelo.fit(df_producto)
+    limite_inferior = 0.8 * promedio
+    limite_superior = 1.2 * promedio
+    df_filtrado = df_prod[(df_prod['y'] >= limite_inferior) & (df_prod['y'] <= limite_superior)]
 
-                # Crear fechas futuras
-                futuro = modelo.make_future_dataframe(periods=365)
-                forecast = modelo.predict(futuro)
+    # Continuar solo si hay suficientes datos
+    if len(df_filtrado) >= 10:
+        try:
+            # Entrenar modelo Prophet
+            modelo = Prophet()
+            modelo.fit(df_filtrado)
 
-                # Mostrar gráfico de predicción
-                st.subheader(f"Predicción de producción - {producto}")
-                fig_pred = modelo.plot(forecast)
-                st.pyplot(fig_pred)
+            # Crear fechas futuras para 12 meses
+            futuro = modelo.make_future_dataframe(periods=365)
+            forecast = modelo.predict(futuro)
 
-                # Descargar resultados
-                st.subheader(f"Descargar predicción en CSV - {producto}")
-                forecast_result = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-                csv = forecast_result.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label=f"Descargar CSV - {producto}",
-                    data=csv,
-                    file_name=f'prediccion_{producto}.csv',
-                    mime='text/csv'
-                )
-        else:
-            st.error("Las columnas necesarias ('Descripcion del Producto', 'Fecha de Produccion', 'Litros') no están presentes en la hoja.")
-    except Exception as e:
-        st.error(f"Error al leer el archivo: {e}")
-else:
-    st.info("Esperando que subas el archivo Excel...")
+            # Filtrar predicción para los próximos 12 meses
+            forecast_12m = forecast[forecast['ds'] > df_filtrado['ds'].max()]
+            forecast_12m = forecast_12m.set_index('ds').resample('M').sum().reset_index()
 
+            # Calcular valor estimado de producción (ejemplo: 10 unidades monetarias por litro)
+            forecast_12m['valor_estimado'] = forecast_12m['yhat'] * 10
 
+            # Guardar resultados
+            resultados[producto] = forecast_12m
+        except Exception as e:
+            print(f"Error al procesar el producto {producto}: {e}")
+
+# Calcular volumen global de la planta por mes
+volumen_global = df.set_index('Fecha de Produccion')['Litros'].resample('M').sum().reset_index()
+
+# Guardar resultados en archivos
+os.makedirs("resultados_prediccion", exist_ok=True)
+for producto, df_pred in resultados.items():
+    nombre_archivo = f"resultados_prediccion/prediccion_12m_{producto[:30].replace('/', '_')}.csv"
+    df_pred.to_csv(nombre_archivo, index=False)
+
+volumen_global.to_csv("resultados_prediccion/volumen_global_planta.csv", index=False)
+
+# Graficar volumen global
+plt.figure(figsize=(10, 5))
+plt.plot(volumen_global['Fecha de Produccion'], volumen_global['Litros'], marker='o')
+plt.title("Volumen Global de Producción por Mes")
+plt.xlabel("Mes")
+plt.ylabel("Litros")
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("resultados_prediccion/volumen_global_predicho.png")
+
+print("Predicciones mensuales y volumen global generados correctamente.")
 
 
 
