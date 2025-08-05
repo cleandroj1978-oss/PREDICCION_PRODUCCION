@@ -11,9 +11,8 @@ uploaded_file = st.file_uploader("Subí el archivo Excel exportado desde Power B
 
 if uploaded_file:
     try:
-        # Leer hoja específica con nombres reales de columnas
-        pd.read_excel(uploaded_file, sheet_name='Bajada Produccion - ORACLE', header=1, engine='openpyxl')
-
+        # Leer hoja específica usando la segunda fila como encabezado
+        df = pd.read_excel(uploaded_file, sheet_name='Bajada Produccion - ORACLE', header=1, engine='openpyxl')
 
         # Mostrar preview de datos
         st.subheader("Vista previa de los datos")
@@ -26,7 +25,8 @@ if uploaded_file:
             productos_seleccionados = st.multiselect("Seleccioná uno o más productos para predecir", productos)
 
             for producto in productos_seleccionados:
-                st.markdown(f"### Producto: {producto}")
+                st.markdown(f"---\n### Producto: {producto}")
+
                 # Filtrar datos
                 df_producto = df[df['Producto'] == producto][['Fecha de Producción', 'LITROS']]
                 df_producto = df_producto.groupby('Fecha de Producción').sum().reset_index()
@@ -70,6 +70,4 @@ if uploaded_file:
         st.error(f"Error al leer el archivo: {e}")
 else:
     st.info("Esperando que subas el archivo Excel...")
-
-
 
